@@ -73,6 +73,7 @@ function _obfuscateCharacter (c, state) {
     return `[${_obfuscateNumber(parseInt(c))}][+[]]`;
   }
   // if we hit this point, it is time to alias String.fromCharCode
+  let fixChLambdaResult = null;
   if (!state.charCodeLambdaBoundToSymbol) {
     var result = "[";
     if (!state.chLambdaBoundToSymbol) {
@@ -81,6 +82,7 @@ function _obfuscateCharacter (c, state) {
         logic: state.nextSymbolToBind
       };
       charSources.push(chLambdaSequence);
+      fixChLambdaResult = chLambdaSequence;
       state.chLambdaBoundToSymbol = state.nextSymbolToBind;
       result += `[${chLambdaSequence.logic}=${chLambdaSequence.result}]&&`;
     }
@@ -98,6 +100,9 @@ function _obfuscateCharacter (c, state) {
     state.charCodeLambdaBoundToSymbol = state.nextSymbolToBind;
     state.nextSymbolToBind += "_";
     result += `][+[]](${_obfuscateNumber(c.charCodeAt(0))})][+[]]`;
+    if (fixChLambdaResult) {
+      fixChLambdaResult.result = "function";
+    }
     return result;
   }
   return state.charCodeLambdaBoundToSymbol +
