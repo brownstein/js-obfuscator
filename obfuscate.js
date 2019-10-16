@@ -1,127 +1,156 @@
-function _obfuscateNumber (n, skipWrap = false) {
+function _obfuscateDigit (n) {
   if (n === 0) {
     return "+[]";
   }
   let chain = "";
-  let remaining = n;
-  while (remaining >= (3**3**2)) {
-    chain += "+((-~[]-~[]-~[])**(-~[]-~[]-~[])**(-~[]-~[]))";
-    remaining -= 3**3**2;
-  }
-  while (remaining >= (3**2**3)) {
-    chain += "+((-~[]-~[]-~[])**(-~[]-~[])**(-~[]-~[]-~[]))";
-    remaining -= 3**2**3;
-  }
-  while (remaining >= (6**6)) {
-    chain += "+((-~[]-~[]-~[]-~[]-~[]-~[])**(-~[]-~[]-~[]-~[]-~[]-~[]))";
-    remaining -= 6**6;
-  }
-  while (remaining >= (5**5)) {
-    chain += "+((-~[]-~[]-~[]-~[]-~[])**(-~[]-~[]-~[]-~[]-~[]))";
-    remaining -= 5**5;
-  }
-  while (remaining >= (3**4)) {
-    chain += "+((-~[]-~[]-~[])**(-~[]-~[]-~[]-~[]))";
-    remaining -= 3**4;
-  }
-  while (remaining >= (2**5)) {
-    chain += "+((-~[]-~[])**(-~[]-~[]-~[]-~[]-~[]))";
-    remaining -= 2**5;
-  }
-  while (remaining >= (2**4)) {
-    chain += "+((-~[]-~[])**(-~[]-~[]-~[]-~[]))";
-    remaining -= 2**4;
-  }
-  while (remaining >= (2**3)) {
-    chain += "+((-~[]-~[])**(-~[]-~[]-~[]))";
-    remaining -= 2**3;
-  }
-  while (remaining > 0) {
-    chain += "-~[]";
-    remaining--;
+  for (let i = 0; i < n; i++) {
+    chain += "+!+[]";
   }
   return chain;
 }
-function _wrapAndIndexInto (logic, index) {
-  return `[${logic}+[]][+[]][${_obfuscateNumber(index)}]`;
-}
-function _defaultCharacterHacks () {
-  return [
-    { result: "true",            logic: "!![]" },
-    { result: "false",           logic: "![]" },
-    { result: "undefined",       logic: "[][[]]" },
-    { result: "[object Object]", logic: "{}" },
-    { result: ",",               logic: "[[],[]]" },
-    { result: "function Array() { [native code] }",
-      logic: "[][[{}+[]][+[]][-~[]-~[]-~[]-~[]-~[]]+[{}+[]][+[]][-~[]]+[[][[]]+[]][+[]][-~[]]+[![]+[]][+[]][-~[]-~[]-~[]]+[!![]+[]][+[]][+[]]+[!![]+[]][+[]][-~[]]+[!![]+[]][+[]][-~[]-~[]]+[{}+[]][+[]][-~[]-~[]-~[]-~[]-~[]]+[!![]+[]][+[]][+[]]+[{}+[]][+[]][-~[]]+[!![]+[]][+[]][-~[]]]"
-    },
-    { result: "function Number() { [native code] }",
-      logic: "[+[]][-[]][[{}+[]][+[]][-~[]-~[]-~[]-~[]-~[]]+[{}+[]][+[]][-~[]]+[[][[]]+[]][+[]][-~[]]+[![]+[]][+[]][-~[]-~[]-~[]]+[!![]+[]][+[]][+[]]+[!![]+[]][+[]][-~[]]+[!![]+[]][+[]][-~[]-~[]]+[{}+[]][+[]][-~[]-~[]-~[]-~[]-~[]]+[!![]+[]][+[]][+[]]+[{}+[]][+[]][-~[]]+[!![]+[]][+[]][-~[]]]"
+
+function _obfuscateNumber (n, skipWrap = false) {
+  if (n === 0) {
+    return "+[]";
+  }
+  const digits = `${n}`.split("");
+  if (digits.length === 1) {
+    return _obfuscateDigit(n);
+  }
+  let chain = "+[";
+  let isFirstDigit = true;
+  digits.forEach(d => {
+    if (!isFirstDigit) {
+      chain += "+[";
     }
-  ];
+    chain += _obfuscateDigit(Number(d));
+    if (!isFirstDigit) {
+      chain += "]";
+    }
+    isFirstDigit = false;
+  });
+  chain = chain + "]";
+  return chain;
 }
-function _obfuscateCharacter (c, state) {
-  const { charSources } = state;
-  for (let si = 0; si < charSources.length; si++) {
-    const { result, logic } = charSources[si];
-    const index = result.indexOf(c);
+
+function _wrapAndIndexInto (logic, index) {
+  return `(${logic}+[])[${_obfuscateNumber(index)}]`;
+}
+
+function _createEncoderState () {
+  return {
+    sequences: [
+      { result: "true",      logic: "!![]" },
+      { result: "false",     logic: "![]" },
+      { result: "undefined", logic: "[][[]]" }
+    ],
+    bindLookupsTo: "_",
+    lookupsBound: false,
+    charCodeBoundto: null
+  };
+}
+
+function _obfuscateSimpleCharacter (state, character) {
+  for (let si = 0; si < state.sequences.length; si++) {
+    const { result, logic } = state.sequences[si];
+    const index = result.indexOf(character);
     if (index !== -1) {
       return _wrapAndIndexInto(logic, index);
     }
   }
-  if (!isNaN(parseInt(c))) {
-    return `[${_obfuscateNumber(parseInt(c))}][+[]]`;
+  return false;
+}
+
+function _obfuscateSimpleString (state, s) {
+  return s.split("").map(c => _obfuscateSimpleCharacter(state, c)).join("+");
+}
+
+function _setupLookupMechanism (state) {
+  if (state.lookupsBound) {
+    return;
   }
-  // if we hit this point, it is time to alias String.fromCharCode
-  let fixChLambdaResult = null;
-  if (!state.charCodeLambdaBoundToSymbol) {
-    var result = "[";
-    if (!state.chLambdaBoundToSymbol) {
-      const chLambdaSequence = {
-        result: `C=>h`,
-        logic: state.nextSymbolToBind
-      };
-      charSources.push(chLambdaSequence);
-      fixChLambdaResult = chLambdaSequence;
-      state.chLambdaBoundToSymbol = state.nextSymbolToBind;
-      result += `[${chLambdaSequence.logic}=${chLambdaSequence.result}]&&`;
-    }
-    const constructorStr = "constructor";
-    const fromCharCodeStr = "fromCharCode";
-    result += `[${state.nextSymbolToBind}=[[]+[]][+[]][`;
-    for (let ci = 0; ci < constructorStr.length; ci++) {
-      result += _obfuscateCharacter(constructorStr[ci], state) + "+";
-    }
-    result += "[]][";
-    for (let ci = 0; ci < fromCharCodeStr.length; ci++) {
-      result += _obfuscateCharacter(fromCharCodeStr[ci], state) + "+";
-    }
-    result += "[]]";
-    state.charCodeLambdaBoundToSymbol = state.nextSymbolToBind;
-    state.nextSymbolToBind += "_";
-    result += `][+[]](${_obfuscateNumber(c.charCodeAt(0))})][+[]]`;
-    if (fixChLambdaResult) {
-      fixChLambdaResult.result = "function";
-    }
+  let result = `${state.bindLookupsTo}=[]`;
+
+  const bindFillTo = `${state.bindLookupsTo}[${_obfuscateNumber(0)}]`;
+  let fillLogic = _obfuscateSimpleString(state, "fill");
+  fillLogic = `[][${fillLogic}]`
+  result += `,${bindFillTo}=${fillLogic}`;
+  state.sequences.push({
+    result: "function fill() { [native code] }",
+    logic: bindFillTo
+  });
+
+  const bindConstructorTo = `${state.bindLookupsTo}[${_obfuscateNumber(1)}]`;
+  const constructorLogic = _obfuscateSimpleString(state, "constructor");
+  result += `,${bindConstructorTo}=${constructorLogic}`;
+  state.sequences.push({
+    result: "constructor",
+    logic: bindConstructorTo
+  });
+
+  const bindStringTo = `${state.bindLookupsTo}[${_obfuscateNumber(2)}]`;
+  const stringLogic = `([]+[])[${bindConstructorTo}]`;
+  result += `,${bindStringTo}=${stringLogic}`;
+  state.sequences.push({
+    result: "function String() { [native code] }",
+    logic: bindStringTo
+  });
+
+  const bindNumberTo = `${state.bindLookupsTo}[${_obfuscateNumber(3)}]`;
+  const numberLogic = `(+[])[${bindConstructorTo}]`;
+  result += `,${bindNumberTo}=${numberLogic}`;
+  state.sequences.push({
+    result: "function Number() { [native code] }",
+    logic: bindNumberTo
+  });
+
+  const toLogic = _obfuscateSimpleString(state, "to");
+  const nameLogic = _obfuscateSimpleString(state, "name");
+  const stringNameLogic = `${bindStringTo}[${nameLogic}]`;
+
+  const bindToStringTo = `${state.bindLookupsTo}[${_obfuscateNumber(4)}]`;
+  const toStringLogic = `${toLogic}+${stringNameLogic}`;
+  result += `,${bindToStringTo}=${toStringLogic}`;
+
+  const pLogic = `(${_obfuscateNumber(211)})[${toLogic}+${stringNameLogic}](${_obfuscateNumber(31)})[${_obfuscateNumber(1)}]`;
+  const escapeLogic = _obfuscateSimpleString(state, "esca") + "+" + pLogic + "+" + _obfuscateSimpleString(state, "e");
+
+  const bindCapitalCTo = `${state.bindLookupsTo}[${_obfuscateNumber(6)}]`;
+  const functionLogic = `${bindFillTo}[${bindConstructorTo}]`;
+  const capitalCLogic = `${functionLogic}(${_obfuscateSimpleString(state, "return ")}+${escapeLogic})()(([]+[])[${_obfuscateSimpleString(state, "italics")}]())[${_obfuscateNumber(2)}]`;
+  result += `,${bindCapitalCTo}=${capitalCLogic}`;
+  state.sequences.push({
+    result: "C",
+    logic: bindCapitalCTo
+  });
+
+  const bindFromCharCodeTo = `${state.bindLookupsTo}[${_obfuscateNumber(10)}]`;
+  const hLogic = `(${_obfuscateNumber(101)})[${toLogic}+${stringNameLogic}](${_obfuscateNumber(21)})[${_obfuscateNumber(1)}]`;
+  const fromCharCodeLogic = `${bindStringTo}[${_obfuscateSimpleString(state, "fromC")}+${hLogic}+${_obfuscateSimpleString(state, "arCode")}]`;
+  result += `,${bindFromCharCodeTo}=${fromCharCodeLogic}`;
+  result += ",[]";
+
+  result = `[${result}][${_obfuscateNumber(8)}]`;
+
+  state.lookupsBound = true;
+  state.charCodeBoundTo = bindFromCharCodeTo;
+
+  return result;
+}
+
+function _obfuscateCharacter (state, character) {
+  let result;
+  if (result = _obfuscateSimpleCharacter(state, character)) {
     return result;
   }
-  return state.charCodeLambdaBoundToSymbol +
-    `(${_obfuscateNumber(c.charCodeAt(0))})`;
+  const setupString = _setupLookupMechanism(state);
+  result = `${setupString ? `${setupString}+` : ""}${state.charCodeBoundTo}(${_obfuscateNumber(character.charCodeAt(0))})`;
+  return result;
 }
-function obfuscateString (str, extraStrings = [], bindFunctionsToSymbol="_") {
-  const parts = [];
-  const state = {
-    charSources: _defaultCharacterHacks().concat(extraStrings.map(result => ({
-      result, logic: `"${result}"`
-    }))),
-    nextSymbolToBind: bindFunctionsToSymbol,
-    chLambdaBoundToSymbol: null,
-    charCodeLambdaBoundToSymbol: null
-  };
-  for (let c = 0; c < str.length; c++) {
-    parts.push(_obfuscateCharacter(str[c], state));
-  }
-  return parts.join("+");
+
+function obfuscateString (str) {
+  const state = _createEncoderState();
+  return str.split("").map(c => _obfuscateCharacter(state, c)).join("+");
 }
 
 module.exports = obfuscateString;

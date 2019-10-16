@@ -4,14 +4,14 @@ const obfuscateString = require("./obfuscate");
 
 const fs = require("fs");
 
-const sourceText = "This is just a string! Type coersion is great.";
+const sourceText = "RB worked here";
 const convertedText = obfuscateString(sourceText);
 
 imageToAscii(
   "js-logo.png", {
     colored: false,
     pixels: " *",
-    size: { height: 40 }
+    size: { height: 41 }
   },
   (err, converted) => {
 
@@ -23,7 +23,7 @@ imageToAscii(
     let iIndex = 0;
     let ctIndex = 0;
     let postfixIndex = 0;
-    let postfixChars = "||[]";
+    let postfixChars = "+[]";
     const result = [];
     while (ctIndex < converted.length) {
       const nextChar = converted[ctIndex];
