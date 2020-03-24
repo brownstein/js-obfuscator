@@ -150,7 +150,8 @@ function _obfuscateCharacter (state, character) {
 
 function obfuscateString (str) {
   const state = _createEncoderState();
-  return str.split("").map(c => _obfuscateCharacter(state, c)).join("+");
+  const result = str.split("").map(c => _obfuscateCharacter(state, c)).join("+");
+  return `[]+[${result}]`;
 }
 
 module.exports = obfuscateString;

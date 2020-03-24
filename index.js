@@ -7,47 +7,92 @@ const fs = require("fs");
 const sourceText = "RB worked here";
 const convertedText = obfuscateString(sourceText);
 
+const fillOptions = [
+  "+[]",
+  "+[[]]",
+  "+[[[]]]",
+];
+
+function fillSeq(numChars, o) {
+  if (numChars <= 0) {
+    return "";
+  }
+  let bestFit = "";
+  let bestFitCost = numChars;
+  for (let i = 0; i < fillOptions.length; i++) {
+    const fillOption = fillOptions[(i + o) % fillOptions.length];
+    const fill = fillOption + fillSeq(numChars - fillOption.length, o + 1);
+    if (fill.length == numChars) {
+      return fill;
+    }
+    if (fill.length > numChars) {
+      continue;
+    }
+    const cost = numChars - fill.length;
+    if (cost < bestFitCost) {
+      bestFitCost = cost;
+      bestFit = fill;
+    }
+  }
+  return bestFit;
+}
+
 imageToAscii(
   "js-logo.png", {
     colored: false,
     pixels: " *",
-    size: { height: 41 }
+    size: { height: 42 }
   },
   (err, converted) => {
-
     if (err) {
       console.error(err);
       process.exit(1);
     }
-
-    let iIndex = 0;
-    let ctIndex = 0;
-    let postfixIndex = 0;
-    let postfixChars = "+[]";
     const result = [];
-    while (ctIndex < converted.length) {
-      const nextChar = converted[ctIndex];
-      switch(nextChar) {
-        case "\n":
-        case "\r":
-        case "\s":
-        case " ":
-          result.push(nextChar);
-          break;
-        default:
-          if (iIndex < convertedText.length) {
-            result.push(convertedText[iIndex++]);
-          }
-          else {
-            result.push(postfixChars[postfixIndex++ % postfixChars.length]);
-          }
-          break;
+    const passthroughChars = ["\n", "\r", " "];
+    let cIndex = 0;
+    let ctIndex = 0;
+    let fsIndex = -1;
+    while (cIndex < converted.length) {
+      const nextChar = converted[cIndex++];
+      if (passthroughChars.includes(nextChar)) {
+        result.push(nextChar);
       }
-      ctIndex++;
+      else {
+        if (ctIndex < convertedText.length) {
+          result.push(convertedText[ctIndex++]);
+        }
+        else {
+          fsIndex = cIndex - 1;
+          break;
+        }
+      }
     }
-    while (iIndex < convertedText.length) {
-      result.push(convertedText[iIndex++]);
+    if (fsIndex != -1) {
+      let fillCharCount = 0;
+      let fIndex = fsIndex;
+      while (fIndex < converted.length) {
+        const nextChar = converted[fIndex++];
+        if (!passthroughChars.includes(nextChar)) {
+          fillCharCount++;
+        }
+      }
+      const filler = fillSeq(fillCharCount, 0);
+      fIndex = 0;
+      while (fsIndex < converted.length) {
+        const nextChar = converted[fsIndex++];
+        if (passthroughChars.includes(nextChar)) {
+          result.push(nextChar);
+        }
+        else {
+          result.push(filler[fIndex++]);
+        }
+      }
     }
+    while (ctIndex < convertedText.length) {
+      result.push(convertedText[ctIndex++]);
+    }
+
     console.log(result.join(""));
   }
 );
