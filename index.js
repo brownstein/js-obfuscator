@@ -4,7 +4,7 @@ const obfuscateString = require("./obfuscate");
 
 const fs = require("fs");
 
-const sourceText = "RB worked here";
+const sourceText = "Just JS!";
 const convertedText = obfuscateString(sourceText);
 
 const fillOptions = [
@@ -41,58 +41,58 @@ imageToAscii(
   "js-logo.png", {
     colored: false,
     pixels: " *",
-    size: { height: 42 }
+    size: { height: 40 }
   },
   (err, converted) => {
     if (err) {
       console.error(err);
       process.exit(1);
     }
-    const result = [];
+
     const passthroughChars = ["\n", "\r", " "];
+    // figure out how many characters we have to work with
+    let convertedCharCount = 0;
+    for (let i = 0; i < converted.length; i++) {
+      if (!passthroughChars.includes(converted[i])) {
+        convertedCharCount++;
+      }
+    }
+
+    // define a wrapper to keep the payload from being partially evaluated on
+    // a newline
+    const wrap = text => `[${text}][+[]]`;
+    // measure the wrapper's length and use that to determine how much filler
+    // we need to complete the provided image
+    const wrapLength = wrap("").length;
+    const fillLength = convertedCharCount - (convertedText.length + wrapLength);
+    // generate full text by wrapping our payload and filler
+    const fullText = wrap(convertedText + fillSeq(fillLength, 0));
+
+    // fill the image with the generated text
+    const result = [];
     let cIndex = 0;
-    let ctIndex = 0;
-    let fsIndex = -1;
+    let tIndex = 0;
     while (cIndex < converted.length) {
       const nextChar = converted[cIndex++];
       if (passthroughChars.includes(nextChar)) {
         result.push(nextChar);
       }
       else {
-        if (ctIndex < convertedText.length) {
-          result.push(convertedText[ctIndex++]);
+        if (tIndex < fullText.length) {
+          result.push(fullText[tIndex++]);
         }
         else {
-          fsIndex = cIndex - 1;
           break;
         }
       }
     }
-    if (fsIndex != -1) {
-      let fillCharCount = 0;
-      let fIndex = fsIndex;
-      while (fIndex < converted.length) {
-        const nextChar = converted[fIndex++];
-        if (!passthroughChars.includes(nextChar)) {
-          fillCharCount++;
-        }
-      }
-      const filler = fillSeq(fillCharCount, 0);
-      fIndex = 0;
-      while (fsIndex < converted.length) {
-        const nextChar = converted[fsIndex++];
-        if (passthroughChars.includes(nextChar)) {
-          result.push(nextChar);
-        }
-        else {
-          result.push(filler[fIndex++]);
-        }
-      }
-    }
-    while (ctIndex < convertedText.length) {
-      result.push(convertedText[ctIndex++]);
+
+    // add anything left remaining to the end
+    while (tIndex < fullText.length) {
+      result.push(fullText[tIndex++]);
     }
 
+    // combine the resulting character array and we're done!
     console.log(result.join(""));
   }
 );
