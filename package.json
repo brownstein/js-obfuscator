@@ -9,7 +9,6 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "image-to-ascii": "^3.0.11",
-    "image-to-ascii-cli": "^1.0.9"
+    "image-to-ascii": "^3.0.11"
   }
 }
